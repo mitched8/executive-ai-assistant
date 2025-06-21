@@ -1,180 +1,220 @@
-# Executive AI Assistant
+# Email AI Assistant
 
-Executive AI Assistant (EAIA) is an AI agent that attempts to do the job of an Executive Assistant (EA).
+A comprehensive system for processing emails with AI agents and building a knowledge graph for intelligent task management.
 
-For a hosted version of EAIA, see documentation [here](https://mirror-feeling-d80.notion.site/How-to-hire-and-communicate-with-an-AI-Email-Assistant-177808527b17803289cad9e323d0be89?pvs=4).
+## Features
 
-Table of contents
+1. **Gmail Integration**: Connects to Gmail API to fetch emails between specified dates
+2. **AI-Powered Email Triage**: Uses GPT-4o to analyze emails and determine importance
+3. **GraphRAG Knowledge Base**: Vector-based knowledge graph using ChromaDB for semantic search
+4. **Action Item Detection**: Automatically identifies tasks and action items from emails
+5. **Interactive Chat Interface**: Conversational AI for managing tasks and searching emails
+6. **Batch Processing**: Handles large volumes of emails in batches of 100
 
-- [General Setup](#general-setup)
-  - [Env](#env)
-  - [Credentials](#env)
-  - [Configuration](#configuration)
-- [Run locally](#run-locally)
-  - [Setup EAIA](#set-up-eaia-locally)
-  - [Ingest emails](#ingest-emails-locally)
-  - [Connect to Agent Inbox](#set-up-agent-inbox-with-local-eaia)
-  - [Use Agent Inbox](#use-agent-inbox)
-- [Run in production (LangGraph Cloud)](#run-in-production--langgraph-cloud-)
-  - [Setup EAIA on LangGraph Cloud](#set-up-eaia-on-langgraph-cloud)
-  - [Ingest manually](#ingest-manually)
-  - [Set up cron job](#set-up-cron-job)
+## Setup
 
-## General Setup
+### 1. Install Dependencies
 
-### Env
-
-1. Fork and then clone this repo. Note: make sure to fork it first, as in order to deploy this you will need your own repo.
-2. Create a Python virtualenv and activate it (e.g. `pyenv virtualenv 3.11.1 eaia`, `pyenv activate eaia`)
-3. Run `pip install -e .` to install dependencies and the package
-
-### Set up credentials
-
-1. Export OpenAI API key (`export OPENAI_API_KEY=...`)
-2. Export Anthropic API key (`export ANTHROPIC_API_KEY=...`)
-3. Enable Google
-   1. [Enable the API](https://developers.google.com/gmail/api/quickstart/python#enable_the_api)
-      - Enable Gmail API if not already by clicking the blue button `Enable the API`
-   2. [Authorize credentials for a desktop application](https://developers.google.com/gmail/api/quickstart/python#authorize_credentials_for_a_desktop_application)
-  
-> Note: If you're using a personal email (non-Google Workspace), select "External" as the User Type in the OAuth consent screen. With "External" selected, you must add your email as a test user in the Google Cloud Console under "OAuth consent screen" > "Test users" to avoid the "App has not completed verification" error. The "Internal" option only works for Google Workspace accounts.
-
-4. Download the client secret. After that, run these commands:
-5. `mkdir eaia/.secrets` - This will create a folder for secrets
-6. `mv ${PATH-TO-CLIENT-SECRET.JSON} eaia/.secrets/secrets.json` - This will move the client secret you just created to that secrets folder
-7. `python scripts/setup_gmail.py` - This will generate another file at `eaia/.secrets/token.json` for accessing Google services.
-8. Export LangSmith API key (`export LANGSMITH_API_KEY`)
-
-### Configuration
-
-The configuration for EAIA can be found in `eaia/main/config.yaml`. Every key in there is required. These are the configuration options:
-
-- `email`: Email to monitor and send emails as. This should match the credentials you loaded above.
-- `full_name`: Full name of user
-- `name`: First name of user
-- `background`: Basic info on who the user is
-- `timezone`: Default timezone the user is in
-- `schedule_preferences`: Any preferences for how calendar meetings are scheduled. E.g. length, name of meetings, etc
-- `background_preferences`: Any background information that may be needed when responding to emails. E.g. coworkers to loop in, etc.
-- `response_preferences`: Any preferences for what information to include in emails. E.g. whether to send calendly links, etc.
-- `rewrite_preferences`: Any preferences for the tone of your emails
-- `triage_no`: Guidelines for when emails should be ignored
-- `triage_notify`: Guidelines for when user should be notified of emails (but EAIA should not attempt to draft a response)
-- `triage_email`: Guidelines for when EAIA should try to draft a response to an email
-
-## Run locally
-
-You can run EAIA locally.
-This is useful for testing it out, but when wanting to use it for real you will need to have it always running (to run the cron job to check for emails).
-See [this section](#run-in-production--langgraph-cloud-) for instructions on how to run in production (on LangGraph Cloud)
-
-### Set up EAIA locally
-
-1. Install development server `pip install -U "langgraph-cli[inmem]"`
-2. Run development server `langgraph dev`
-
-### Ingest Emails Locally
-
-Let's now kick off an ingest job to ingest some emails and run them through our local EAIA.
-
-Leave the `langgraph dev` command running, and open a new terminal. From there, get back into this directory and virtual environment. To kick off an ingest job, run:
-
-```shell
-python scripts/run_ingest.py --minutes-since 120 --rerun 1 --early 0
+```bash
+pip install -r requirements.txt
 ```
 
-This will ingest all emails in the last 120 minutes (`--minutes-since`). It will NOT break early if it sees an email it already saw (`--early 0`) and it will
-rerun ones it has seen before (`--rerun 1`). It will run against the local instance we have running.
+### 2. Environment Variables
 
-### Set up Agent Inbox with Local EAIA
+Create a `.env` file with your OpenAI API key:
 
-After we have [run it locally](#run-locally), we can interract with any results.
-
-1. Go to [Agent Inbox](https://dev.agentinbox.ai/)
-2. Connect this to your locally running EAIA agent:
-   1. Click into `Settings`
-   2. Input your LangSmith API key.
-   3. Click `Add Inbox`
-      1. Set `Assistant/Graph ID` to `main`
-      2. Set `Deployment URL` to `http://127.0.0.1:2024`
-      3. Give it a name like `Local EAIA`
-      4. Press `Submit`
-
-You can now interract with EAIA in the Agent Inbox.
-
-## Run in production (LangGraph Cloud)
-
-These instructions will go over how to run EAIA in LangGraph Cloud.
-You will need a LangSmith Plus account to be able to access [LangGraph Cloud](https://langchain-ai.github.io/langgraph/concepts/langgraph_cloud/)
-
-If desired, you can always run EAIA in a self-hosted manner using LangGraph Platform [Lite](https://langchain-ai.github.io/langgraph/concepts/self_hosted/#self-hosted-lite) or [Enterprise](https://langchain-ai.github.io/langgraph/concepts/self_hosted/#self-hosted-enterprise).
-
-### Set up EAIA on LangGraph Cloud
-
-1. Make sure you have a LangSmith Plus account
-2. Navigate to the deployments page in LangSmith
-3. Click `New Deployment`
-4. Connect it to your GitHub repo containing this code.
-5. Give it a name like `Executive-AI-Assistant`
-6. Add the following environment variables
-   1. `OPENAI_API_KEY`
-   2. `ANTHROPIC_API_KEY`
-   3. `GMAIL_SECRET` - This is the value in `eaia/.secrets/secrets.json`
-   4. `GMAIL_TOKEN` - This is the value in `eaia/.secrets/token.json`
-7. Click `Submit` and watch your EAIA deploy
-
-### Ingest manually
-
-Let's now kick off a manual ingest job to ingest some emails and run them through our LangGraph Cloud EAIA.
-
-First, get your `LANGGRAPH_CLOUD_URL`
-
-To kick off an ingest job, run:
-
-```shell
-python scripts/run_ingest.py --minutes-since 120 --rerun 1 --early 0 --url ${LANGGRAPH-CLOUD-URL}
+```
+OPENAI_API_KEY=your_openai_api_key_here
 ```
 
-This will ingest all emails in the last 120 minutes (`--minutes-since`). It will NOT break early if it sees an email it already saw (`--early 0`) and it will
-rerun ones it has seen before (`--rerun 1`). It will run against the prod instance we have running (`--url ${LANGGRAPH-CLOUD-URL}`)
+### 3. Gmail API Setup
 
-### Set up Agent Inbox with LangGraph Cloud EAIA
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select an existing one
+3. Enable the Gmail API
+4. Create credentials (OAuth 2.0 Client ID)
+5. Download the credentials JSON file and save it as `credentials.json` in the project directory
 
-After we have [deployed it](#set-up-eaia-on-langgraph-cloud), we can interract with any results.
+### 4. Run the Application
 
-1. Go to [Agent Inbox](https://dev.agentinbox.ai/)
-2. Connect this to your locally running EAIA agent:
-   1. Click into `Settings`
-   2. Click `Add Inbox`
-      1. Set `Assistant/Graph ID` to `main`
-      2. Set `Deployment URL` to your deployment URL
-      3. Give it a name like `Prod EAIA`
-      4. Press `Submit`
-
-### Set up cron job
-
-You probably don't want to manually run ingest all the time. Using LangGraph Platform, you can easily set up a cron job
-that runs on some schedule to check for new emails. You can set this up with:
-
-```shell
-python scripts/setup_cron.py --url ${LANGGRAPH-CLOUD-URL}
+```bash
+python email_ai_assistant.py
 ```
 
-## Advanced Options
+## Usage
 
-If you want to control more of EAIA besides what the configuration allows, you can modify parts of the code base.
+### Main Menu Options
 
-**Reflection Logic**
-To control the prompts used for reflection (e.g. to populate memory) you can edit `eaia/reflection_graphs.py`
+1. **Process emails from date range**: Fetch and analyze emails between two dates
+2. **View action items**: See all pending tasks identified from emails
+3. **Chat with assistant**: Interactive conversation about your emails and tasks
+4. **Exit**: Close the application
 
-**Triage Logic**
-To control the logic used for triaging emails you can edit `eaia/main/triage.py`
+### Chat Commands
 
-**Calendar Logic**
-To control the logic used for looking at available times on the calendar you can edit `eaia/main/find_meeting_time.py`
+- `/actions` - View all pending action items
+- `/search <query>` - Search the knowledge graph for relevant information
+- `/add <task>` - Add a new action item manually
+- `/complete <id>` - Mark an action item as completed
+- `/quit` - Exit the chat interface
 
-**Tone & Style Logic**
-To control the logic used for the tone and style of emails you can edit `eaia/main/rewrite.py`
+## System Architecture
 
-**Email Draft Logic**
-To control the logic used for drafting emails you can edit `eaia/main/draft_response.py`
+### Components
+
+1. **EmailAIAssistant**: Main orchestrator class
+2. **LangGraph Workflow**: AI agent pipeline with four stages:
+   - **Triage**: Determine email importance and generate summary
+   - **Extract Entities**: Identify people, companies, dates, projects
+   - **Identify Actions**: Find actionable tasks and deadlines
+   - **Update Knowledge Graph**: Store relationships and information
+
+3. **SQLite Database**: Persistent storage for:
+   - Email metadata and content
+   - Action items with status tracking
+   - Graph entities and relationships metadata
+
+4. **ChromaDB Vector Database**: Semantic search and storage for:
+   - Email content embeddings
+   - Entity embeddings with descriptions
+   - Relationship embeddings for graph traversal
+
+### Data Flow
+
+```
+Gmail API → Email Fetching → AI Processing → GraphRAG (ChromaDB + SQLite) → Vector Search
+                                ↓
+                         Action Item Detection → Task Management
+```
+
+## Database Schema
+
+### Tables
+
+- **emails**: Email metadata, content, and AI analysis results
+- **action_items**: Tasks with priority, status, and due dates
+- **graph_entities**: Extracted entities with types and descriptions
+- **graph_relationships**: Relationships between entities with strength scores
+
+### ChromaDB Collections
+
+- **emails**: Vector embeddings of email content for semantic search
+- **entities**: Vector embeddings of entities with contextual descriptions
+- **relationships**: Vector embeddings of entity relationships
+
+## AI Processing Pipeline
+
+Each email goes through a 4-stage LangGraph workflow:
+
+1. **Triage Agent**: 
+   - Analyzes email importance
+   - Generates concise summary
+   - Uses GPT-4o for decision making
+
+2. **Entity Extraction Agent**:
+   - Identifies people, companies, dates
+   - Extracts project names and keywords
+   - Creates structured entity list
+
+3. **Action Item Agent**:
+   - Finds tasks and deadlines
+   - Identifies follow-up requirements
+   - Detects meeting scheduling needs
+
+4. **GraphRAG Agent**:
+   - Stores emails as vector embeddings
+   - Creates entity embeddings with AI-generated descriptions
+   - Establishes semantic relationships between entities
+   - Updates vector database for semantic search
+
+## GraphRAG Structure
+
+### Entity Types
+- **PERSON**: Individuals mentioned in emails
+- **COMPANY**: Organizations and businesses
+- **PROJECT**: Work projects and initiatives
+- **LOCATION**: Places and addresses
+- **DATE**: Important dates and deadlines
+- **PRODUCT**: Products and services
+- **CONCEPT**: Abstract concepts and topics
+- **OTHER**: Miscellaneous entities
+
+### Relationship Types
+- **WORKS_WITH**: Professional collaboration
+- **PART_OF**: Hierarchical relationships
+- **RELATED_TO**: General associations
+- **MENTIONS**: Simple mentions in context
+- **COLLABORATES**: Active collaboration
+- **OTHER**: Miscellaneous relationships
+
+## Customization
+
+### Modifying AI Prompts
+
+Edit the prompt templates in the agent methods:
+- `triage_email()`: Email importance analysis
+- `extract_entities()`: Entity extraction logic
+- `identify_action_items()`: Action item detection
+
+### Adding New Node Types
+
+Extend the knowledge graph by:
+1. Adding new node types in `update_knowledge_graph()`
+2. Creating new relationship types
+3. Updating database schema if needed
+
+### Batch Size Configuration
+
+Modify `BATCH_SIZE` constant to change email processing batch size (default: 100).
+
+## Error Handling
+
+The system includes comprehensive error handling:
+- Gmail API rate limiting and errors
+- AI model failures with fallback responses
+- Database connection issues
+- Email parsing errors
+
+## Performance Considerations
+
+- Processes emails in batches to manage memory usage
+- Uses SQLite for efficient local storage
+- Implements pagination for large email volumes
+- Caches knowledge graph in memory for fast access
+
+## Security Notes
+
+- OAuth 2.0 for secure Gmail access
+- Local storage of credentials and data
+- No email content sent to external services except OpenAI
+- API keys stored in environment variables
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Gmail API Quota Exceeded**: Wait for quota reset or request increase
+2. **OpenAI API Errors**: Check API key and billing status
+3. **Database Locked**: Close other connections to SQLite file
+4. **Memory Issues**: Reduce batch size for large email volumes
+
+### Logs
+
+The system uses Python logging to track:
+- Email processing progress
+- AI agent execution
+- Database operations
+- Error conditions
+
+## Future Enhancements
+
+- Email response generation
+- Calendar integration for scheduling
+- Advanced search with vector embeddings
+- Multi-user support
+- Web interface
+- Integration with task management tools
+
+## License
+
+MIT License - see LICENSE file for details.

@@ -42,7 +42,7 @@ def get_credentials(
         with open(_TOKEN_PATH, "w") as token:
             token.write(gmail_token)
     gmail_secret = gmail_secret or os.getenv("GMAIL_SECRET")
-    if gmail_secret:
+    if gmail_secret and not os.path.exists(_SECRETS_PATH):
         with open(_SECRETS_PATH, "w") as secret:
             secret.write(gmail_secret)
     if os.path.exists(_TOKEN_PATH):
